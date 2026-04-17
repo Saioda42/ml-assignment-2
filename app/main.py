@@ -53,6 +53,19 @@ def get_education_levels():
     }
     return {"education_levels": education_mapping}
 
+@app.get("/valid-categories")
+def get_valid_categories():
+    """Returnera alla giltiga kategorier för categorical features"""
+    from app.preprocessing import label_encoders
+    import pandas as pd
+
+    categories = {}
+    for col in ['workclass', 'marital-status', 'occupation', 'relationship', 'race', 'sex', 'native-country']:
+        if col in label_encoders:
+            categories[col] = [c for c in label_encoders[col].classes_ if pd.notna(c)]
+
+    return {"categories": categories}
+
 @app.post("/predict/xgboost", response_model=PredictionOutput)
 def predict_xgboost(input_data: PredictionInput):
     data_dict = input_data.dict()

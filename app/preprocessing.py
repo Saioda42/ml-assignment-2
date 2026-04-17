@@ -59,12 +59,20 @@ def preprocess_input(data_dict):
         'sex': 'sex',
         'native-country': 'native_country'
     }
-    
+
     # Konvertera och lagra cat_features
     cat_features = {}
     for label_col, api_col in cat_cols_mapping.items():
         value = data_dict.get(api_col, '')
-        cat_features[label_col] = label_encoders[label_col].transform([value])[0]
+        try:
+            cat_features[label_col] = label_encoders[label_col].transform([value])[0]
+        except ValueError as e:
+            # If value not in training data, use first valid class as default
+            valid_classes = [c for c in label_encoders[label_col].classes_ if str(c) != 'nan']
+            if valid_classes:
+                cat_features[label_col] = label_encoders[label_col].transform([valid_classes[0]])[0]
+            else:
+                raise ValueError(f"No valid classes for {label_col}") from e
     
     # Numeriska features
     num_features = np.array([
@@ -88,25 +96,27 @@ def preprocess_input(data_dict):
 def predict_xgb(data_dict):
     """Predict med XGBoost"""
     cat_features_arr, num_features_scaled = preprocess_input(data_dict)
-    
+
     # Kombinera features
     all_features = np.hstack([cat_features_arr, num_features_scaled])
-    
+
     # Predictera
     pred_prob = xgb_model.predict_proba(all_features)[0][1]
-    return float(pred_prob)
+    prediction = 1 if pred_prob > 0.5 else 0
+    return prediction, float(pred_prob)
 
 def predict_mlp(data_dict):
     """Predict med MLP"""
     cat_features_arr, num_features_scaled = preprocess_input(data_dict)
-    
+
     # Konvertera till torch tensors
     X_cat = torch.tensor(cat_features_arr, dtype=torch.long)
     X_num = torch.tensor(num_features_scaled, dtype=torch.float32)
-    
+
     # Predictera
     with torch.no_grad():
         logits = mlp_model(X_cat, X_num)
         pred_prob = torch.sigmoid(logits).item()
-    
-    return float(pred_prob)
+
+    prediction = 1 if pred_prob > 0.5 else 0
+    return prediction, float(pred_prob)
