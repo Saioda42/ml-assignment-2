@@ -39,9 +39,9 @@ class AdultMLP(nn.Module):
         x = torch.cat([embedded_concat, X_num], dim=1)
         return self.fc_layers(x)
 
-# Ladda MLP - embedding_dims från checkpoint
-embedding_dims = {'workclass': 9, 'marital-status': 6, 'occupation': 15, 'relationship': 5, 'race': 4, 'sex': 1, 'native-country': 41}
-embedding_sizes = {'workclass': 5, 'marital-status': 4, 'occupation': 8, 'relationship': 3, 'race': 3, 'sex': 1, 'native-country': 21}
+# Ladda MLP
+embedding_dims = joblib.load(os.path.join(MODEL_DIR, 'embedding_dims.pkl'))
+embedding_sizes = joblib.load(os.path.join(MODEL_DIR, 'embedding_sizes.pkl'))
 
 mlp_model = AdultMLP(embedding_dims, embedding_sizes, num_features=6)
 mlp_model.load_state_dict(torch.load(os.path.join(MODEL_DIR, 'mlp_model.pth'), map_location='cpu'))
