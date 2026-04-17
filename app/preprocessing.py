@@ -15,7 +15,7 @@ xgb_model = joblib.load(os.path.join(MODEL_DIR, 'xgb_model.pkl'))
 
 # Definierna AdultMLP samma som notebooken
 class AdultMLP(nn.Module):
-    def __init__(self, embedding_dims, embedding_sizes, num_features, hidden_sizes=[128, 64]):
+    def __init__(self, embedding_dims, embedding_sizes, num_features, hidden_sizes=[64, 32]):
         super().__init__()
         self.embeddings = nn.ModuleList([
             nn.Embedding(num_embeddings=emb_size + 1, embedding_dim=embedding_sizes[col])
@@ -26,10 +26,10 @@ class AdultMLP(nn.Module):
         self.fc_layers = nn.Sequential(
             nn.Linear(input_size, hidden_sizes[0]),
             nn.ReLU(),
-            nn.Dropout(0.3),
+            nn.Dropout(0.5),
             nn.Linear(hidden_sizes[0], hidden_sizes[1]),
             nn.ReLU(),
-            nn.Dropout(0.3),
+            nn.Dropout(0.5),
             nn.Linear(hidden_sizes[1], 1)
         )
     
