@@ -218,4 +218,8 @@ for epoch in range(50):
 test_loss, test_acc = eval_epoch(model, test_loader, loss_fn, device)
 print(f"\nFinal Test Loss: {test_loss:.4f}, Test Acc: {test_acc:.4f}")
 
+# Save embedding configuration
+joblib.dump(embedding_dims, 'app/models/embedding_dims.pkl')
+joblib.dump(embedding_sizes, 'app/models/embedding_sizes.pkl')
+
 print("\n✅ Model saved to app/models/mlp_model.pth")
