@@ -39,9 +39,9 @@ class AdultMLP(nn.Module):
         x = torch.cat([embedded_concat, X_num], dim=1)
         return self.fc_layers(x)
 
-# Ladda MLP
-embedding_dims = {'workclass': 10, 'marital-status': 7, 'occupation': 16, 'relationship': 6, 'race': 5, 'sex': 2, 'native-country': 42}
-embedding_sizes = {'workclass': 6, 'marital-status': 4, 'occupation': 9, 'relationship': 4, 'race': 3, 'sex': 2, 'native-country': 22}
+# Ladda MLP - embedding_dims från checkpoint
+embedding_dims = {'workclass': 9, 'marital-status': 6, 'occupation': 15, 'relationship': 5, 'race': 4, 'sex': 1, 'native-country': 41}
+embedding_sizes = {'workclass': 5, 'marital-status': 4, 'occupation': 8, 'relationship': 3, 'race': 3, 'sex': 1, 'native-country': 21}
 
 mlp_model = AdultMLP(embedding_dims, embedding_sizes, num_features=6)
 mlp_model.load_state_dict(torch.load(os.path.join(MODEL_DIR, 'mlp_model.pth'), map_location='cpu'))
@@ -59,40 +59,54 @@ def preprocess_input(data_dict):
         'sex': 'sex',
         'native-country': 'native_country'
     }
-    num_cols = ['age', 'fnlwgt', 'education_num', 'capital_gain', 'capital_loss', 'hours_per_week']
-
-    # Encode kategoriska
-    X_cat = []
-    for encoder_col, api_col in cat_cols_mapping.items():
-        encoded = label_encoders[encoder_col].transform([data_dict[api_col]])[0]
-        X_cat.append(encoded)
     
-    # Numeriska
-    X_num = [data_dict[col] for col in num_cols]
+    # Konvertera och lagra cat_features
+    cat_features = {}
+    for label_col, api_col in cat_cols_mapping.items():
+        value = data_dict.get(api_col, '')
+        cat_features[label_col] = label_encoders[label_col].transform([value])[0]
     
-    # Log1p på capital gains/losses
-    X_num[3] = np.log1p(X_num[3])  # capital_gain
-    X_num[4] = np.log1p(X_num[4])  # capital_loss
+    # Numeriska features
+    num_features = np.array([
+        data_dict.get('age', 0),
+        data_dict.get('fnlwgt', 0),
+        data_dict.get('education_num', 0),
+        np.log1p(data_dict.get('capital_gain', 0)),
+        np.log1p(data_dict.get('capital_loss', 0)),
+        data_dict.get('hours_per_week', 0)
+    ], dtype=np.float32).reshape(1, -1)
     
-    # Scale numeriska
-    X_num_scaled = scaler.transform([X_num])[0]
+    # Normalisera numeriska features
+    num_features_scaled = scaler.transform(num_features)
     
-    return np.array([X_cat]), np.array([X_num_scaled])
+    # Konvertera cat till numeriska
+    cat_cols_list = ['workclass', 'marital-status', 'occupation', 'relationship', 'race', 'sex', 'native-country']
+    cat_features_arr = np.array([cat_features[col] for col in cat_cols_list], dtype=np.int64).reshape(1, -1)
+    
+    return cat_features_arr, num_features_scaled
 
 def predict_xgb(data_dict):
-    X_cat, X_num = preprocess_input(data_dict)
-    # XGBoost behöver båda concat
-    X_full = np.concatenate([X_cat, X_num], axis=1)
-    prob = xgb_model.predict_proba(X_full)[0, 1]
-    pred = xgb_model.predict(X_full)[0]
-    return int(pred), float(prob)
+    """Predict med XGBoost"""
+    cat_features_arr, num_features_scaled = preprocess_input(data_dict)
+    
+    # Kombinera features
+    all_features = np.hstack([cat_features_arr, num_features_scaled])
+    
+    # Predictera
+    pred_prob = xgb_model.predict_proba(all_features)[0][1]
+    return float(pred_prob)
 
 def predict_mlp(data_dict):
-    X_cat, X_num = preprocess_input(data_dict)
+    """Predict med MLP"""
+    cat_features_arr, num_features_scaled = preprocess_input(data_dict)
+    
+    # Konvertera till torch tensors
+    X_cat = torch.tensor(cat_features_arr, dtype=torch.long)
+    X_num = torch.tensor(num_features_scaled, dtype=torch.float32)
+    
+    # Predictera
     with torch.no_grad():
-        X_cat_t = torch.tensor(X_cat, dtype=torch.long)
-        X_num_t = torch.tensor(X_num, dtype=torch.float32)
-        logit = mlp_model(X_cat_t, X_num_t).squeeze().item()
-        prob = 1 / (1 + np.exp(-logit))  # sigmoid
-    pred = 1 if prob > 0.5 else 0
-    return pred, float(prob)
+        logits = mlp_model(X_cat, X_num)
+        pred_prob = torch.sigmoid(logits).item()
+    
+    return float(pred_prob)
