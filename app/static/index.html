@@ -55,6 +55,15 @@
             font-size: 14px;
         }
 
+        .help-text {
+            display: block;
+            color: #999;
+            font-size: 12px;
+            margin-top: 4px;
+            margin-bottom: 8px;
+            font-weight: normal;
+        }
+
         input, select {
             width: 100%;
             padding: 12px;
@@ -257,6 +266,7 @@
 
             <div class="form-group">
                 <label for="workclass">Arbetsklass</label>
+                <span class="help-text">💡 För student/arbetslös: välj "Never-worked"</span>
                 <select id="workclass" name="workclass" required>
                     <option value="Private">Private</option>
                     <option value="Self-emp-not-inc">Self-emp-not-inc</option>
@@ -284,7 +294,9 @@
 
             <div class="form-group">
                 <label for="occupation">Yrke</label>
+                <span class="help-text">💡 För student/arbetslös: välj "?"</span>
                 <select id="occupation" name="occupation" required>
+                    <option value="?">? (Okänt/Student/Arbetslös)</option>
                     <option value="Exec-managerial">Exec-managerial</option>
                     <option value="Prof-specialty">Prof-specialty</option>
                     <option value="Craft-repair">Craft-repair</option>
